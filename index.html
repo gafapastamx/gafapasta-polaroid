@@ -1,1 +1,637 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>GAFAPASTA EXPERT // Virtual Try-On Polaroid</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Permanent+Marker&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --madera: #7c4d2b;
+      --madera-oscura: #523018;
+      --papel: #f8f6f0;
+      --cinta: rgba(235, 220, 185, 0.78);
+    }
+    body {
+      background-color: var(--madera);
+      background-image: 
+        repeating-linear-gradient(90deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 2px, transparent 2px, transparent 14px),
+        radial-gradient(circle at 50% 30%, #96613b 0%, #5e371b 100%);
+      font-family: 'Space Grotesk', sans-serif;
+      color: #1a1a1a;
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+    .font-marker { font-family: 'Permanent Marker', cursive; }
+    .polaroid-shadow { box-shadow: 0 14px 28px rgba(0,0,0,0.45), 0 4px 10px rgba(0,0,0,0.3); }
+    .card-shadow { box-shadow: 0 4px 10px rgba(0,0,0,0.35); }
+    .masking-tape {
+      background: var(--cinta);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      transform: rotate(-3deg);
+    }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    .title-stroke {
+      color: #fde047;
+      text-shadow: -2px -2px 0 #000, 2px -2px 0 #000, -2px 2px 0 #000, 2px 2px 0 #000, 0 4px 0 #000;
+    }
+  </style>
+</head>
+<body class="flex flex-col items-center justify-between py-4 px-3 select-none">
 
+  <!-- Contenedor Móvil Estilo Mesa de Estudio -->
+  <div class="w-full max-w-md mx-auto flex flex-col items-center relative">
+
+    <!-- Botón Discreto para Configurar API Key de Gemini (Nano Banana) -->
+    <button id="config-api-btn" class="absolute -top-1 right-1 bg-black/40 text-amber-200 text-[10px] px-2 py-1 rounded border border-amber-300/30 hover:bg-black/70 transition z-30">
+      🍌 Motor IA: <span id="api-status">Smart-Fit</span>
+    </button>
+
+    <!-- Encabezado Estilo Sticker -->
+    <header class="text-center mb-3 mt-2">
+      <p class="text-white font-bold text-xs tracking-widest uppercase drop-shadow-[0_2px_2px_rgba(0,0,0,0.9)]">
+        VIRTUAL TRY-ON DEMO:
+      </p>
+      <h1 class="font-marker text-2xl sm:text-3xl tracking-wide title-stroke leading-tight">
+        “GAFAPASTA EXPERT”
+      </h1>
+      <p class="font-marker text-lg title-stroke -mt-1">
+        x NANO BANANA 🍌
+      </p>
+    </header>
+
+    <!-- Zona Central: Notas Izquierdas + Polaroid Principal -->
+    <div class="w-full grid grid-cols-12 gap-2 items-center my-1">
+
+      <!-- Columna Izquierda: Paso 1 (Subir Selfie) y Paso 2 (Subir Lentes Propios) -->
+      <div class="col-span-3 flex flex-col gap-4 z-10">
+        
+        <!-- Nota 1: Sube tu Foto -->
+        <label class="relative bg-[#faf8f2] p-2 pt-4 text-center card-shadow cursor-pointer hover:scale-105 transition transform -rotate-2">
+          <div class="masking-tape w-6 h-3 absolute -top-1.5 left-1/2 -translate-x-1/2"></div>
+          <div class="text-2xl mb-1">📷</div>
+          <span class="block text-[10px] font-bold uppercase leading-tight">1. Sube tu<br>Selfie</span>
+          <input id="input-selfie" type="file" accept="image/*" class="hidden" />
+        </label>
+
+        <!-- Nota 2: Subir Lentes Propios o Elegir Abajo -->
+        <label class="relative bg-[#faf8f2] p-2 pt-4 text-center card-shadow cursor-pointer hover:scale-105 transition transform rotate-1">
+          <div class="masking-tape w-6 h-3 absolute -top-1.5 left-1/2 -translate-x-1/2"></div>
+          <span class="block text-[9px] font-bold uppercase leading-tight mb-1">2. Sube Lente<br>o elige abajo</span>
+          <div class="text-lg leading-none">👓</div>
+          <div class="text-[9px] font-bold my-0.5">x</div>
+          <div class="text-lg leading-none">🕶️</div>
+          <input id="input-custom-frame" type="file" accept="image/*" class="hidden" />
+        </label>
+
+      </div>
+
+      <!-- Columna Derecha (9 cols): Marco Polaroid Principal -->
+      <div class="col-span-9 flex justify-center">
+        <div id="polaroid-card" class="bg-[#fbfaf6] p-3 pb-5 polaroid-shadow transform rotate-1 w-full max-w-[290px] transition duration-300 relative">
+          
+          <!-- Visor Cuadrado de la Polaroid -->
+          <div class="relative w-full aspect-[4/4.3] bg-neutral-900 overflow-hidden border border-neutral-300">
+            <canvas id="polaroid-canvas" class="w-full h-full object-cover"></canvas>
+
+            <!-- Overlay de Procesamiento / Revelado -->
+            <div id="developing-overlay" class="hidden absolute inset-0 bg-black/80 backdrop-blur-sm flex flex-col items-center justify-center text-white p-4 text-center">
+              <div class="w-8 h-8 border-3 border-amber-300 border-t-transparent rounded-full animate-spin mb-2"></div>
+              <p id="developing-text" class="text-xs font-bold uppercase tracking-wider text-amber-300">Revelando Polaroid...</p>
+            </div>
+
+            <!-- Controles flotantes de ajuste fino (aparecen al tocar la foto) -->
+            <div id="fine-tune-bar" class="absolute bottom-1.5 right-1.5 flex gap-1 bg-black/65 backdrop-blur px-1.5 py-1 rounded text-white text-[10px]">
+              <button id="btn-smaller" class="px-1.5 hover:text-amber-300" title="Más chico">－</button>
+              <button id="btn-bigger" class="px-1.5 hover:text-amber-300" title="Más grande">＋</button>
+              <button id="btn-up" class="px-1 hover:text-amber-300" title="Subir">↑</button>
+              <button id="btn-down" class="px-1 hover:text-amber-300" title="Bajar">↓</button>
+            </div>
+          </div>
+
+          <!-- Pie de la Polaroid escrito con plumón -->
+          <div class="mt-3 text-center">
+            <p id="polaroid-caption-1" class="font-marker text-base text-neutral-900 leading-tight uppercase">
+              PRUEBA #1:
+            </p>
+            <p id="polaroid-caption-2" class="font-marker text-sm text-neutral-800 leading-tight uppercase">
+              MODELO “RETRO CAREY” ✨
+            </p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Carrusel Inferior: Catálogo en Tarjetas con Cinta -->
+    <div class="w-full mt-3">
+      <div id="catalog-carousel" class="flex gap-2.5 overflow-x-auto no-scrollbar py-2 px-1">
+        <!-- Se llena dinámicamente con JS -->
+      </div>
+    </div>
+
+    <!-- Botón Principal Estilo Sticker "¡PRUÉBATELOS! 🔥" -->
+    <div class="w-full flex flex-col items-center mt-2 gap-2">
+      <button id="btn-generate" class="bg-[#fef3c7] hover:bg-[#fde68a] text-black font-marker text-xl px-8 py-2.5 rounded-full border-[3px] border-black shadow-[0_4px_0_#000] active:translate-y-1 active:shadow-none transition flex items-center gap-2">
+        <span>¡PRUÉBATELOS!</span> <span>🔥</span>
+      </button>
+
+      <!-- Barra de Acciones: Guardar Polaroid o Enviar a la Óptica -->
+      <div class="flex gap-2 w-full justify-center mt-1">
+        <button id="btn-download" class="bg-white/90 hover:bg-white text-black font-bold text-xs px-4 py-2 rounded border-2 border-black shadow-[0_2px_0_#000] flex items-center gap-1.5">
+          📥 Guardar Polaroid
+        </button>
+        <a id="btn-whatsapp" href="#" target="_blank" class="bg-[#a3e635] hover:bg-[#bef264] text-black font-bold text-xs px-4 py-2 rounded border-2 border-black shadow-[0_2px_0_#000] flex items-center gap-1.5">
+          💬 Enviar a Gafapasta
+        </a>
+      </div>
+
+      <!-- Tarjeta Rosa Inferior "Gafapasta Expert" -->
+      <div class="mt-2 bg-[#f4cfdf] px-4 py-1.5 card-shadow transform -rotate-1 border border-black/15 text-center">
+        <p class="text-xs font-bold text-neutral-900 leading-none">Gafapasta Expert</p>
+        <p class="text-[10px] text-neutral-700 leading-tight">Estudio de Visagismo & Lentería</p>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Modal para ingresar Gemini API Key (Para Fusión Generativa IA real) -->
+  <div id="api-modal" class="hidden fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+    <div class="bg-[#faf8f2] border-2 border-black p-5 max-w-sm w-full card-shadow">
+      <h3 class="font-bold text-sm uppercase mb-1">🍌 Activar Fusión IA (Nano Banana)</h3>
+      <p class="text-xs text-neutral-600 mb-3">
+        Si ingresas tu API Key de Google AI Studio, el botón <b>¡PRUÉBATELOS!</b> usará <b>Gemini Image Generation</b> para fusionar cualquier foto de lentes con tu selfie respetando luz, cabello y reflejos. Si lo dejas vacío, usará el <b>Modo Smart-Fit 3D</b> gratuito.
+      </p>
+      <input id="api-key-input" type="password" placeholder="AIzaSy..." class="w-full border border-neutral-400 p-2 text-xs mb-3 bg-white" />
+      <div class="flex justify-end gap-2">
+        <button id="close-modal" class="text-xs px-3 py-1.5 border border-black">Cerrar</button>
+        <button id="save-api-key" class="text-xs px-3 py-1.5 bg-black text-white font-bold">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { FaceLandmarker, FilesetResolver } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+    // Catálogo de Gafapasta con tus modelos (Carey Round, Metal Dorado Hexagonal, Cat-Eye, Aviador)
+    const CATALOGO = [
+      {
+        id: "carey-round",
+        nombre: "CAREY ROUND",
+        tituloPolaroid: "RETRO CAREY",
+        calibre: "49-21-145",
+        customImg: null,
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 200">
+          <defs>
+            <linearGradient id="careyGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#1f0d05"/><stop offset="22%" stop-color="#9a4e12"/>
+              <stop offset="40%" stop-color="#241006"/><stop offset="60%" stop-color="#d97706"/>
+              <stop offset="80%" stop-color="#1a0b04"/><stop offset="100%" stop-color="#78350f"/>
+            </linearGradient>
+            <linearGradient id="blueBlock" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="rgba(96,165,250,0.32)"/>
+              <stop offset="35%" stop-color="rgba(255,255,255,0.06)"/>
+              <stop offset="100%" stop-color="rgba(59,130,246,0.12)"/>
+            </linearGradient>
+          </defs>
+          <!-- Micas redondas con reflejo antirreflejante azulado como en tus fotos -->
+          <circle cx="145" cy="102" r="74" fill="rgba(255,255,255,0.03)"/>
+          <circle cx="395" cy="102" r="74" fill="rgba(255,255,255,0.03)"/>
+          <ellipse cx="125" cy="88" rx="42" ry="56" transform="rotate(-18 125 88)" fill="url(#blueBlock)"/>
+          <ellipse cx="375" cy="88" rx="42" ry="56" transform="rotate(-18 375 88)" fill="url(#blueBlock)"/>
+          <!-- Armazón Redondo Carey con Puente Llave (Foto 4) -->
+          <path d="M16,62 C35,55 58,42 95,28 C145,12 205,28 232,52 C252,44 288,44 308,52 C335,28 395,12 445,28 C482,42 505,55 524,62 L522,84 C504,86 492,94 486,118 C474,166 438,190 392,190 C342,190 308,158 302,106 C298,84 285,72 270,72 C255,72 242,84 238,106 C232,158 198,190 148,190 C102,190 66,166 54,118 C48,94 36,86 18,84 Z
+                   M146,34 C104,34 72,64 72,104 C72,146 104,174 146,174 C188,174 220,146 220,104 C220,64 188,34 146,34 Z
+                   M394,34 C352,34 320,64 320,104 C320,146 352,174 394,174 C436,174 468,146 468,104 C468,64 436,34 394,34 Z"
+                fill="url(#careyGrad)" fill-rule="evenodd" stroke="#120703" stroke-width="2"/>
+          <!-- Plaquetas metálicas doradas en los talones -->
+          <rect x="24" y="68" width="14" height="5" rx="2" fill="#fde047"/>
+          <rect x="502" y="68" width="14" height="5" rx="2" fill="#fde047"/>
+        </svg>`
+      },
+      {
+        id: "metal-gold",
+        nombre: "METAL DORADO",
+        tituloPolaroid: "GOLD WIRE",
+        calibre: "52-19-145",
+        customImg: null,
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 195">
+          <defs>
+            <linearGradient id="goldWire" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="#b45309"/><stop offset="50%" stop-color="#fef08a"/><stop offset="100%" stop-color="#92400e"/>
+            </linearGradient>
+            <linearGradient id="arGreen" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="rgba(52,211,153,0.28)"/>
+              <stop offset="40%" stop-color="rgba(255,255,255,0.05)"/>
+              <stop offset="100%" stop-color="rgba(255,255,255,0)"/>
+            </linearGradient>
+          </defs>
+          <!-- Micas poligonales suaves (Foto 1 y 3) -->
+          <path d="M44,54 C52,30 120,24 195,34 C222,38 232,58 228,102 C222,154 188,176 132,174 C68,172 40,136 44,54 Z" fill="rgba(255,255,255,0.03)"/>
+          <path d="M496,54 C488,30 420,24 345,34 C318,38 308,58 312,102 C318,154 352,176 408,174 C472,172 500,136 496,54 Z" fill="rgba(255,255,255,0.03)"/>
+          <polygon points="65,36 125,36 90,168 52,135" fill="url(#arGreen)"/>
+          <polygon points="355,36 415,36 380,168 342,135" fill="url(#arGreen)"/>
+          <!-- Plaquetas nasales transparentes -->
+          <ellipse cx="242" cy="96" rx="5" ry="12" transform="rotate(-14 242 96)" fill="rgba(255,255,255,0.5)" stroke="#b45309" stroke-width="1.5"/>
+          <ellipse cx="298" cy="96" rx="5" ry="12" transform="rotate(14 298 96)" fill="rgba(255,255,255,0.5)" stroke="#b45309" stroke-width="1.5"/>
+          <!-- Aro metálico delgado dorado -->
+          <path d="M22,58 L44,54 M518,58 L496,54" stroke="url(#goldWire)" stroke-width="6" stroke-linecap="round"/>
+          <path d="M228,68 Q270,48 312,68" fill="none" stroke="url(#goldWire)" stroke-width="5"/>
+          <path d="M44,54 C52,30 120,24 195,34 C222,38 232,58 228,102 C222,154 188,176 132,174 C68,172 40,136 44,54 Z" fill="none" stroke="url(#goldWire)" stroke-width="5.5"/>
+          <path d="M496,54 C488,30 420,24 345,34 C318,38 308,58 312,102 C318,154 352,176 408,174 C472,172 500,136 496,54 Z" fill="none" stroke="url(#goldWire)" stroke-width="5.5"/>
+        </svg>`
+      },
+      {
+        id: "cat-eye",
+        nombre: "CAT-EYE CAREY",
+        tituloPolaroid: "CAT-EYE BOLD",
+        calibre: "51-18-140",
+        customImg: null,
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 190">
+          <path d="M14,28 C65,24 175,38 235,56 C255,62 285,62 305,56 C365,38 475,24 526,28 L512,78 C498,136 462,172 396,172 C336,172 310,142 298,96 C290,76 250,76 242,96 C230,142 204,172 144,172 C78,172 42,136 28,78 Z
+                   M56,54 C98,48 182,56 218,70 C222,118 196,154 144,154 C88,154 58,120 56,54 Z
+                   M484,54 C442,48 358,56 322,70 C318,118 344,154 396,154 C452,154 482,120 484,54 Z"
+                fill="#1c1917" fill-rule="evenodd" stroke="#000" stroke-width="2"/>
+        </svg>`
+      },
+      {
+        id: "aviador-solar",
+        nombre: "AVIATOR",
+        tituloPolaroid: "AVIATOR 70s",
+        calibre: "56-16-145",
+        customImg: null,
+        svg: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 540 195">
+          <path d="M38,44 L218,44 C232,44 236,125 202,166 C162,186 68,180 44,140 Z" fill="rgba(30,58,47,0.68)" stroke="#d4af37" stroke-width="6"/>
+          <path d="M502,44 L322,44 C308,44 304,125 338,166 C378,186 472,180 496,140 Z" fill="rgba(30,58,47,0.68)" stroke="#d4af37" stroke-width="6"/>
+          <line x1="175" y1="30" x2="365" y2="30" stroke="#d4af37" stroke-width="6"/>
+          <line x1="225" y1="60" x2="315" y2="60" stroke="#d4af37" stroke-width="5"/>
+        </svg>`
+      }
+    ];
+
+    let armazonSeleccionado = CATALOGO[0];
+    let numPrueba = 1;
+    let faceLandmarker;
+    let selfieImg = new Image();
+    let frameImg = new Image();
+    let resultadoIAImg = null; // Si Gemini devuelve imagen fusionada, se guarda aquí
+    let ajusteEscala = 1.0;
+    let ajusteY = 0;
+
+    const canvas = document.getElementById("polaroid-canvas");
+    const ctx = canvas.getContext("2d");
+    const overlay = document.getElementById("developing-overlay");
+    const overlayText = document.getElementById("developing-text");
+
+    // Cargar una selfie de demostración inicial o retrato neutro
+    function crearAvatarDemo() {
+      const c = document.createElement("canvas");
+      c.width = 600; c.height = 650;
+      const g = c.getContext("2d");
+      const grad = g.createLinearGradient(0, 0, 0, 650);
+      grad.addColorStop(0, "#27272a"); grad.addColorStop(1, "#18181b");
+      g.fillStyle = grad; g.fillRect(0, 0, 600, 650);
+      g.fillStyle = "#a1a1aa"; g.font = "bold 20px sans-serif"; g.textAlign = "center";
+      g.fillText("📷 TOCA '1. SUBE TU SELFIE'", 300, 300);
+      g.font = "15px sans-serif";
+      g.fillText("para probarte los lentes en formato Polaroid", 300, 335);
+      selfieImg.src = c.toDataURL();
+    }
+
+    function cargarImagenArmazon(item) {
+      return new Promise((resolve) => {
+        frameImg.onload = () => resolve();
+        if (item.customImg) {
+          frameImg.src = item.customImg;
+        } else {
+          const blob = new Blob([item.svg], { type: "image/svg+xml;charset=utf-8" });
+          frameImg.src = URL.createObjectURL(blob);
+        }
+      });
+    }
+
+    function renderizarCarrusel() {
+      const cont = document.getElementById("catalog-carousel");
+      cont.innerHTML = "";
+      CATALOGO.forEach((item) => {
+        const activo = item.id === armazonSeleccionado.id;
+        const card = document.createElement("button");
+        card.className = `relative flex-shrink-0 w-24 bg-[#faf8f2] p-2 pt-3 text-center card-shadow transition transform ${
+          activo ? "ring-2 ring-black scale-105 -translate-y-1" : "opacity-90 hover:opacity-100"
+        }`;
+
+        const previewSrc = item.customImg
+          ? item.customImg
+          : "data:image/svg+xml;utf8," + encodeURIComponent(item.svg);
+
+        card.innerHTML = `
+          <div class="masking-tape w-5 h-2.5 absolute -top-1 left-1/2 -translate-x-1/2"></div>
+          ${activo ? '<span class="absolute top-0.5 right-1 text-xs font-bold">✓</span>' : ''}
+          <img src="${previewSrc}" class="w-full h-9 object-contain my-1" />
+          <span class="block text-[9px] font-bold uppercase leading-tight truncate">${item.nombre}</span>
+          ${activo ? '<span class="block text-[8px] font-bold text-neutral-600 uppercase">SELECCIONADO</span>' : ''}
+        `;
+
+        card.onclick = async () => {
+          armazonSeleccionado = item;
+          resultadoIAImg = null;
+          document.getElementById("polaroid-caption-2").innerText = `MODELO “${item.tituloPolaroid}” ✨`;
+          renderizarCarrusel();
+          await cargarImagenArmazon(item);
+          dibujarPolaroidSmartFit();
+        };
+        cont.appendChild(card);
+      });
+    }
+
+    // Motor 1: Smart-Fit 3D Instantáneo sobre la Selfie (MediaPipe IMAGE mode)
+    function dibujarPolaroidSmartFit() {
+      if (!selfieImg.complete || !selfieImg.naturalWidth) return;
+      canvas.width = 700;
+      canvas.height = 750;
+
+      // Dibujar la selfie centrada tipo crop cuadrado Polaroid
+      const scale = Math.max(canvas.width / selfieImg.naturalWidth, canvas.height / selfieImg.naturalHeight);
+      const w = selfieImg.naturalWidth * scale;
+      const h = selfieImg.naturalHeight * scale;
+      const ox = (canvas.width - w) / 2;
+      const oy = (canvas.height - h) / 2;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(selfieImg, ox, oy, w, h);
+
+      // Si tenemos el resultado generado por IA (Nano Banana), mostrar ese
+      if (resultadoIAImg) {
+        ctx.drawImage(resultadoIAImg, 0, 0, canvas.width, canvas.height);
+        return;
+      }
+
+      if (!faceLandmarker) return;
+      const res = faceLandmarker.detect(canvas);
+
+      if (res.faceLandmarks && res.faceLandmarks.length > 0) {
+        const pts = res.faceLandmarks[0];
+        const p = (i) => ({ x: pts[i].x * canvas.width, y: pts[i].y * canvas.height });
+
+        const puente = p(168);
+        const ojoIzq = p(33);
+        const ojoDer = p(263);
+        const sienIzq = p(234);
+        const sienDer = p(454);
+
+        const roll = Math.atan2(ojoDer.y - ojoIzq.y, ojoDer.x - ojoIzq.x);
+        const anchoCara = Math.hypot(sienDer.x - sienIzq.x, sienDer.y - sienIzq.y);
+
+        // Ajuste de perspectiva lateral si la selfie está de tres cuartos (como tus fotos de ejemplo)
+        const dIzq = Math.hypot(puente.x - sienIzq.x, puente.y - sienIzq.y);
+        const dDer = Math.hypot(sienDer.x - puente.x, sienDer.y - puente.y);
+        const yawScale = Math.max(0.84, 1 - (Math.abs(dIzq - dDer) / anchoCara) * 0.25);
+
+        const anchoLente = anchoCara * 1.04 * ajusteEscala;
+        const aspect = frameImg.naturalWidth ? (frameImg.naturalHeight / frameImg.naturalWidth) : (195 / 540);
+        const altoLente = anchoLente * aspect;
+
+        ctx.save();
+        ctx.translate(puente.x, puente.y + ajusteY);
+        ctx.rotate(roll);
+        ctx.scale(yawScale, 1);
+
+        // Sombra suave realista sobre mejillas y tabique
+        ctx.shadowColor = "rgba(0, 0, 0, 0.48)";
+        ctx.shadowBlur = 14;
+        ctx.shadowOffsetY = 7;
+
+        ctx.drawImage(frameImg, -anchoLente / 2, -altoLente * 0.38, anchoLente, altoLente);
+        ctx.restore();
+      } else {
+        // Si aún no hay rostro detectado, superponer al centro
+        const anchoLente = canvas.width * 0.55 * ajusteEscala;
+        const aspect = frameImg.naturalWidth ? (frameImg.naturalHeight / frameImg.naturalWidth) : 0.36;
+        const altoLente = anchoLente * aspect;
+        ctx.drawImage(frameImg, (canvas.width - anchoLente) / 2, (canvas.height - altoLente) / 2 + ajusteY, anchoLente, altoLente);
+      }
+
+      actualizarLinkWhatsApp();
+    }
+
+    // Recortador automático para cuando el usuario sube una foto de lentes con fondo blanco/gris
+    function limpiarFondoLentes(img) {
+      const c = document.createElement("canvas");
+      c.width = img.width; c.height = img.height;
+      const g = c.getContext("2d");
+      g.drawImage(img, 0, 0);
+      const imgData = g.getImageData(0, 0, c.width, c.height);
+      const d = imgData.data;
+      const bgR = d[0], bgG = d[1], bgB = d[2];
+
+      for (let i = 0; i < d.length; i += 4) {
+        const r = d[i], gr = d[i+1], b = d[i+2];
+        const dist = Math.hypot(r - bgR, gr - bgG, b - bgB);
+        const luma = (r + gr + b) / 3;
+        if (dist < 44 || luma > 234) {
+          d[i+3] = 0;
+        } else if (dist < 68) {
+          d[i+3] = Math.round(((dist - 44) / 24) * 255);
+        }
+      }
+      g.putImageData(imgData, 0, 0);
+      return c.toDataURL("image/png");
+    }
+
+    // Subir Selfie (Foto 1)
+    document.getElementById("input-selfie").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      resultadoIAImg = null;
+      selfieImg.onload = () => dibujarPolaroidSmartFit();
+      selfieImg.src = URL.createObjectURL(file);
+    });
+
+    // Subir Lentes Propios (Foto 2)
+    document.getElementById("input-custom-frame").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const temp = new Image();
+      temp.onload = async () => {
+        const pngLimpio = limpiarFondoLentes(temp);
+        const nuevo = {
+          id: "custom-" + Date.now(),
+          nombre: "MI ARMAZÓN",
+          tituloPolaroid: "PIEZA CUSTOM",
+          calibre: "CUSTOM",
+          customImg: pngLimpio,
+          originalFile: file
+        };
+        CATALOGO.unshift(nuevo);
+        armazonSeleccionado = nuevo;
+        resultadoIAImg = null;
+        document.getElementById("polaroid-caption-2").innerText = `MODELO “PIEZA CUSTOM” ✨`;
+        renderizarCarrusel();
+        await cargarImagenArmazon(nuevo);
+        dibujarPolaroidSmartFit();
+      };
+      temp.src = URL.createObjectURL(file);
+    });
+
+    // Botón "¡PRUÉBATELOS! 🔥": Ejecuta Fusión Generativa IA si hay API Key, o revela con efecto Polaroid
+    document.getElementById("btn-generate").onclick = async () => {
+      numPrueba++;
+      document.getElementById("polaroid-caption-1").innerText = `PRUEBA #${numPrueba}:`;
+      overlay.classList.remove("hidden");
+
+      const apiKey = localStorage.getItem("gafapasta_gemini_key");
+
+      if (apiKey) {
+        overlayText.innerText = "Fusionando con Nano Banana IA...";
+        try {
+          // Preparar Base64 de la selfie actual y del armazón
+          const tempSelfie = document.createElement("canvas");
+          tempSelfie.width = 700; tempSelfie.height = 750;
+          tempSelfie.getContext("2d").drawImage(selfieImg, 0, 0, 700, 750);
+          const selfieB64 = tempSelfie.toDataURL("image/jpeg", 0.85).split(",")[1];
+
+          const tempFrame = document.createElement("canvas");
+          tempFrame.width = 540; tempFrame.height = 200;
+          tempFrame.getContext("2d").drawImage(frameImg, 0, 0, 540, 200);
+          const frameB64 = tempFrame.toDataURL("image/png").split(",")[1];
+
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-image-preview:generateContent?key=${apiKey}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [{
+                  parts: [
+                    { text: "Place the exact eyeglasses from the second image onto the person's face in the first image. Keep the person's face, hair, lighting, and background 100% identical. Add realistic lens reflections, subtle nose pad shadows, and natural temple occlusion behind the hair." },
+                    { inlineData: { mimeType: "image/jpeg", data: selfieB64 } },
+                    { inlineData: { mimeType: "image/png", data: frameB64 } }
+                  ]
+                }],
+                generationConfig: { responseModalities: ["TEXT", "IMAGE"] }
+              })
+            }
+          );
+
+          const data = await resp.json();
+          const imgPart = data?.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+          if (imgPart) {
+            const genImg = new Image();
+            genImg.onload = () => {
+              resultadoIAImg = genImg;
+              dibujarPolaroidSmartFit();
+              overlay.classList.add("hidden");
+            };
+            genImg.src = `data:${imgPart.inlineData.mimeType};base64,${imgPart.inlineData.data}`;
+            return;
+          }
+        } catch (err) {
+          console.warn("Fallback a Smart-Fit local:", err);
+        }
+      }
+
+      // Revelado Polaroid con Smart-Fit 3D
+      overlayText.innerText = "Ajustando arquitectura facial...";
+      setTimeout(() => {
+        dibujarPolaroidSmartFit();
+        overlay.classList.add("hidden");
+      }, 450);
+    };
+
+    // Controles de ajuste milimétrico (+, -, arriba, abajo)
+    document.getElementById("btn-smaller").onclick = () => { ajusteEscala -= 0.04; dibujarPolaroidSmartFit(); };
+    document.getElementById("btn-bigger").onclick = () => { ajusteEscala += 0.04; dibujarPolaroidSmartFit(); };
+    document.getElementById("btn-up").onclick = () => { ajusteY -= 5; dibujarPolaroidSmartFit(); };
+    document.getElementById("btn-down").onclick = () => { ajusteY += 5; dibujarPolaroidSmartFit(); };
+
+    // Exportar y Descargar la Polaroid Completa (Con Marco Blanco y Letra escrita a mano)
+    document.getElementById("btn-download").onclick = () => {
+      const out = document.createElement("canvas");
+      out.width = 820;
+      out.height = 1020;
+      const g = out.getContext("2d");
+
+      // Papel Polaroid Blanco Cálido
+      g.fillStyle = "#fbfaf6";
+      g.fillRect(0, 0, out.width, out.height);
+
+      // Foto interior
+      g.drawImage(canvas, 50, 50, 720, 770);
+
+      // Borde sutil interno
+      g.strokeStyle = "#d4d4d8";
+      g.lineWidth = 2;
+      g.strokeRect(50, 50, 720, 770);
+
+      // Texto tipo plumón en la base de la Polaroid
+      g.fillStyle = "#171717";
+      g.textAlign = "center";
+      g.font = "bold 40px 'Permanent Marker', cursive, sans-serif";
+      g.fillText(document.getElementById("polaroid-caption-1").innerText, 410, 890);
+      g.font = "bold 34px 'Permanent Marker', cursive, sans-serif";
+      g.fillText(document.getElementById("polaroid-caption-2").innerText, 410, 940);
+
+      // Sello Gafapasta Expert
+      g.fillStyle = "#737373";
+      g.font = "bold 18px sans-serif";
+      g.fillText("GAFAPASTA EXPERT // @gafapasta.mx", 410, 990);
+
+      const link = document.createElement("a");
+      link.download = `Gafapasta-Polaroid-${armazonSeleccionado.id}.png`;
+      link.href = out.toDataURL("image/png");
+      link.click();
+    };
+
+    function actualizarLinkWhatsApp() {
+      const msg = `Qué onda Gafapasta, acabo de revelar mi Polaroid en el Virtual Try-On:\n• Modelo: ${armazonSeleccionado.tituloPolaroid} (${armazonSeleccionado.calibre})\n• Quiero cotizar este armazón con mi graduación.`;
+      document.getElementById("btn-whatsapp").href = `https://wa.me/?text=${encodeURIComponent(msg)}`;
+    }
+
+    // Modal de API Key
+    const modal = document.getElementById("api-modal");
+    document.getElementById("config-api-btn").onclick = () => {
+      document.getElementById("api-key-input").value = localStorage.getItem("gafapasta_gemini_key") || "";
+      modal.classList.remove("hidden");
+    };
+    document.getElementById("close-modal").onclick = () => modal.classList.add("hidden");
+    document.getElementById("save-api-key").onclick = () => {
+      const val = document.getElementById("api-key-input").value.trim();
+      if (val) {
+        localStorage.setItem("gafapasta_gemini_key", val);
+        document.getElementById("api-status").innerText = "Nano Banana IA Activo";
+      } else {
+        localStorage.removeItem("gafapasta_gemini_key");
+        document.getElementById("api-status").innerText = "Smart-Fit";
+      }
+      modal.classList.add("hidden");
+    };
+
+    async function init() {
+      if (localStorage.getItem("gafapasta_gemini_key")) {
+        document.getElementById("api-status").innerText = "Nano Banana IA Activo";
+      }
+      crearAvatarDemo();
+      renderizarCarrusel();
+      await cargarImagenArmazon(CATALOGO[0]);
+      dibujarPolaroidSmartFit();
+
+      const vision = await FilesetResolver.forVisionTasks(
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
+      );
+      faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
+          delegate: "GPU"
+        },
+        runningMode: "IMAGE",
+        numFaces: 1
+      });
+      dibujarPolaroidSmartFit();
+    }
+
+    init();
+  </script>
+</body>
+</html>
